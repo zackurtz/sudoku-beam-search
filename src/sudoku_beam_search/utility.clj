@@ -153,33 +153,33 @@
 ;;==============================================================
 ;; BOARD PROCESSING FUNCTIONS
 
-(defn BLOCK-GROUPS [board]
+(defn block-groups [board]
   "Take a board (array) and return a list of lists, one with the values in each block of the board"
-  (loop [x (range 0 XBLOCKS)] 
-    (nconc (loop [y (range 0 YBLOCKS)]
-        (collect (loop [i (range 0 YBLOCKS)]
-            (nconc (loop [j (range 0 XBLOCKS)]
+  (for [x (range 0 XBLOCKS)] 
+     (for [y (range 0 YBLOCKS)]
+        (loop [i (range 0 YBLOCKS)]
+            (loop [j (range 0 XBLOCKS)]
                    ;; Each block is YBLOCKS cells wide and 
                    ;; XBLOCKS cells high.
                    ;; We're on the xth horizontal block
                    ;; and the yth vertical block, so offset
                    ;; appropriately.
-                   (collect (get-in board [(+ (* y XBLOCKS) j) (+ (* x YBLOCKS) i)]
-))))))))))
+                   (get-in board [(+ (* y XBLOCKS) j) (+ (* x YBLOCKS) i)])
+)))))
 
-(defn ROW-GROUPS [board]
+(defn row-groups [board]
   "Take a board (array) and return a list of lists, one with the values
 in each row of the board"
-  (loop for i from 0 to (- MAXX 1)
-     collect (loop for j from 0 to (- MAXY 1)
-           collect (aref board i j))))
+  (loop [y 0 results []]
+    (when (< y MAXY)
+        (recur (+ y 1) (conj results (board y))))))
 
 
-(defn COLUMN-GROUPS [board]
+(defn column-groups [board]
   "Take a board (array) and return a list of lists, one with the values
 in each column of the board"
-  (loop for j from 0 to (- MAXY 1)
-     collect (loop for i from 0 to (- MAXX 1)
-           collect (aref board i j))))
+  (for [j (range 0 MAXY)]
+     (for [i (range 0 MAXX)]
+        (get-in board [i j]))))
 
 
