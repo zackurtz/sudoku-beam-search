@@ -3,7 +3,7 @@
 
 ;;==============================================================
 ;; Sudoku Solver
-(require 'sudoku-beam-search.utility)
+(use 'sudoku-beam-search.utility)
 ;; All the test cases wrapped up in classes
 
 (def testc1 { :name 'test1 :board test1 })
