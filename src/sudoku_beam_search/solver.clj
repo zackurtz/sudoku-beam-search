@@ -159,17 +159,15 @@
 ;; large problems. (I also tried a tail recursive version, but the loop
 ;; was faster)
 (defn insert-game-loop [new-game old-games]
-  (let [old-game nil remaining old-games num-old (count old-games)]
-    (if (nil? old-games) (return-from insert-game-loop (list new-game)))
-    (for [i (range 0 num-old)]
-      (set old-game (car remaining))
-      (if (<= (:siblings new-game) (:siblings old-game))
-        (return-from insert-game-loop
-          (append (butlast old-games (- num-old i))
-          (cons new-game (last old-games (- num-old i))))))
-      (set remaining (rest remaining)))
-    (return-from insert-game-loop
-      (append old-games (list new-game)))))
+  (if (nil? old-games)
+    (list new-game)
+    (let [num-old (count old-games)]
+      (loop [i num-old old-game (first old-games) remaining (rest old-games)]
+        (if (<= (:siblings new-game) (:siblings old-game))
+          (conj (butlast old-games (- num-old i)) 
+                (cons new-game (last old-games (- num-old i))))
+        (recur (- i 1) (first remaining) (rest remaining))))
+      (conj new-game old-games))))
 
 ;; BESTFS Queueing function
 ;; Output is a list in ascending order of
@@ -179,8 +177,8 @@
 ;;  1. Depth (Deepest first)
 ;;  2. (If there is a tie in depth) Sibling-games (Least remaining values)
 ;; The function bases the ordering only on 2.
-(defn q-bestfs (old new)
-  (let ((sorted old))
+(defn q-bestfs [old new]
+  (let [sorted old]
     (for [game new]
       (if game
         (set sorted (insert-game-loop game sorted))))
@@ -200,23 +198,18 @@
 ;;       states in new that were created by assigning a value to *one* square
 ;;       (the square with the least possible values remaining).
 ;;
-(defn q-beam (old new)
-  (let ((sorted nil) (templist nil))
+(defn q-beam [old new]
+  (let [sorted nil templist nil]
     (for [game new]
       (if game
         (do
         (set templist (insert-game-loop game sorted))
         (set sorted
         (subseq templist 0
-        (min (length templist) (max (sibling-games (car templist)) 1)))))))
-    (append sorted old)))
+        (min (count templist) (max (:siblings (first templist)) 1)))))))
+    (conj sorted old)))
 
 ;; A wrapper to take time stats on the general-search function
-(defn search-stats (game q-fs depthlimit &optional (reps_allowed nil))
+(defn search-stats [game q-fs depthlimit & [reps_allowed]]
   (let [start 0 end 0]
-    (set start (get-internal-run-time))
-    (set results (general-search game q-fs depthlimit reps_allowed))
-    (set end (get-internal-run-time))
-    (print "RUNTIME")
-    (print (- end start))
-    results))
+    (time (general-search game q-fs depthlimit reps_allowed))))
