@@ -40,7 +40,7 @@
 
 ;; NOTE that for *test5* and *test6* you will need to change
 ;; the defvar/setq for XBLOCKS to 3 and YBLOCKS to 2, and reload 
-;; this file to recompute MAXX, MAXY, and VALUES.
+;; this file to recompute MAXX, MAXY.
 
 ;; A 6x6 board with 8 missing numbers
 (def test5 [[4 '- 2 1 6 5]
@@ -82,44 +82,38 @@
 
 
 ;; A "hard" 9x9 board
-(def test9 [[9 '- '- 4 '- '- 6 '- '-] ['- '- 7 '- '- '- '- '- 3]
-            ['- '- '- 1 2 '- '- '- '-] [1 2 '- '- 4 3 '- 5 '-]
-            [7 '- '- '- '- '- '- '- 4] ['- 4 '- 7 6 '- '- 8 9]
-            ['- '- '- '- 7 1 '- '- '-] [6 '- '- '- '- '- 9 '- '-]
-            ['- '- 4 '- '- 8 '- '- 2]])
+(def test9 [[ 9 '- '-  4 '- '-  6 '- '-] 
+            ['- '-  7 '- '- '- '- '-  3]
+            ['- '- '-  1  2 '- '- '- '-]
+            [ 1  2 '- '-  4  3 '-  5 '-]
+            [ 7 '- '- '- '- '- '- '-  4] 
+            ['-  4 '-  7  6 '- '-  8  9]
+            ['- '- '- '-  7  1 '- '- '-] 
+            [ 6 '- '- '- '- '-  9 '- '-]
+            ['- '-  4 '- '-  8 '- '-  2]])
 
 
 ;;==============================================================
 ;; GLOBAL CONSTANTS
 
-;; How many blocks along the x and y axes?  default is 2x2 '-> 4x4 board
-(def XBLOCKS "Number of large blocks along the x-axis" 3)
-
-(def YBLOCKS "Number of large blocks along the y-axis" 3)
-
-(def MAXX (* XBLOCKS YBLOCKS))
-(def MAXY (* YBLOCKS XBLOCKS))
-
-(def VALUES "Possible values to fill in a cell" (range 1 (+ 1 (* XBLOCKS YBLOCKS))))
-
 ;;==============================================================
 ;; BASIC UTILITY FUNCTIONS
 
-(defn xsize [b]
+(defn numrows [b]
   (count (first b)))
 
-(defn ysize [b]
+(defn numcols [b]
   (count b))
 
 (defn empty-cell [cell]
   """Return true if a Sudoko cell is empty (i.e., is '-)"""
   (= cell '-))
 
-(defn empty-loc [board x y]
-  """Return T if an x,y position on a Sudoku board is an empty cell"""
-  (and (not (< x 0)) (not (< y 0))
-    (not (>= x (xsize board))) (not (>= y (ysize board)))
-    (empty-cell (get-in board [x y]))))
+(defn empty-loc [board row col]
+  """Return T if an row,col position on a Sudoku board is an empty cell"""
+  (and (not (< row 0)) (not (< col 0))
+    (not (>= row (numrows board))) (not (>= col (numcols board)))
+    (empty-cell (get-in board [row col]))))
 
 
 ;;==============================================================
@@ -139,7 +133,7 @@
   """Print a formatted Sudoku game board"""
   (doseq [y (range 0 (count b))] (do
     (doseq [x (range 0 (count (first b)))]
-      (printf " %s" (str (or (get-in b [x y]) "-"))))
+      (printf " %s" (str (or (get-in b [y x]) "-"))))
     (printf "%n"))))
 
 ;; Method for printing a game object to stdout
@@ -150,36 +144,5 @@
 
 
 
-;;==============================================================
-;; BOARD GROUPING FUNCTIONS
-
-(defn block-groups [board]
-  "Take a board (array) and return a list of lists, one with the values in each block of the board"
-  (for [x (range 0 XBLOCKS)] 
-     (for [y (range 0 YBLOCKS)]
-        (for [i (range 0 YBLOCKS)]
-            (for [j (range 0 XBLOCKS)]
-                   ;; Each block is YBLOCKS cells wide and 
-                   ;; XBLOCKS cells high.
-                   ;; We're on the xth horizontal block
-                   ;; and the yth vertical block, so offset
-                   ;; appropriately.
-                   (get-in board [(+ (* y XBLOCKS) j) (+ (* x YBLOCKS) i)])
-)))))
-
-(defn row-groups [board]
-  "Take a board (array) and return a list of lists, one with the values
-in each row of the board"
-  (loop [y 0 results []]
-    (if (< y (ysize board))
-        (recur (+ y 1) (conj results (board y))))))
-
-
-(defn column-groups [board]
-  "Take a board (array) and return a list of lists, one with the values
-in each column of the board"
-  (for [j (range 0 (ysize board))]
-     (for [i (range 0 (xsize board))]
-        (get-in board [i j]))))
 
 

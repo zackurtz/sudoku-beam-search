@@ -1,60 +1,68 @@
 (ns sudoku-beam-search.solver
   (:require [clojure.math.numeric-tower :as math]))
 
+(use 'clojure.set)
+
 ;;==============================================================
 ;; Sudoku Solver
 (use 'sudoku-beam-search.utility)
 ;; All the test cases wrapped up in classes
 
-(def testc1 { :name 'test1 :board test1 })
-(def testc2 { :name 'test2 :board test2 })
-(def testc3 { :name 'test3 :board test3 })
-(def testc4 { :name 'test4 :board test4 })
-(def testc5 { :name 'test5 :board test5 })
-(def testc6 { :name 'test6 :board test6 })
-(def testc7 { :name 'test7 :board test7 })
-(def testc8 { :name 'test8 :board test8 })
-(def testc9 { :name 'test9 :board test9 })
+(defn create-grid-info [block-rows block-cols]
+  (let [edge-size (* block-rows block-cols)]
+    {:row-count edge-size :col-count edge-size
+      :blrow-size block-rows :blcol-size block-cols}))
+
+(def info-4x4 (create-grid-info 2 2))
+(def info-6x6 (create-grid-info 2 3))
+(def info-9x9 (create-grid-info 3 3))
+
+(def testc1 { :name 'test1 :board test1 :info info-4x4})
+(def testc2 { :name 'test2 :board test2 :info info-4x4})
+(def testc3 { :name 'test3 :board test3 :info info-4x4})
+(def testc4 { :name 'test4 :board test4 :info info-4x4})
+(def testc5 { :name 'test5 :board test5 :info info-6x6})
+(def testc6 { :name 'test6 :board test6 :info info-6x6})
+(def testc7 { :name 'test7 :board test7 :info info-9x9})
+(def testc8 { :name 'test8 :board test8 :info info-9x9})
+(def testc9 { :name 'test9 :board test9 :info info-9x9})
 
 ;; Limits of search
 
 (def expand_limit 200000)
 (def max-runtime 30000000)
 
-
-;; A quick function to change the sudoku dimensions
-(defn reset-dims [x y]
-  (do
-    (set! XBLOCKS x)
-    (set! YBLOCKS y)
-    (set! MAXX (* XBLOCKS YBLOCKS))
-    (set! MAXY (* XBLOCKS YBLOCKS))))
-
 ;; A function to generate the possible values for each cell
-;; (I saw the one in sudoku-basics after I had already written this)
-(defn gen-cell-values []
-  (range 1 (+ (* XBLOCKS YBLOCKS) 1)))
+(defn gen-cell-values [grid-info]
+  (set (range 1 (+ (* (:blrow-size grid-info) (:blcol-size grid-info)) 1))))
 
-;; Lists the possible values for the cell at (aref grid row col)
-(defn list-valid [grid row col]
-  (let [valid (gen-cell-values)
-        box_row (* (math/floor (/ row YBLOCKS)) YBLOCKS)
-        box_col (* (math/floor (/ col XBLOCKS)) XBLOCKS)]
-    (for [test_row (range 0 (- MAXY 1)) :when (not (= test_row row))]
-      (remove (get-in grid test_row col) valid))
-    (for [test_col (range 0 (- MAXX 1)) :when (not (= test_col col))]
-      (remove (get-in grid row test_col) valid))
-    (for [test_row (range box_row (+ box_row (- YBLOCKS 1)))]
-      (for [test_col (range box_col (+ box_col (- XBLOCKS 1)))]
-        (if (not (and (= test_row row) (= test_col col)))
-            (remove (get-in grid [test_row test_col]) valid))))
-    valid))
+(defn block-start [grid-info row col]
+  [(* (math/floor (/ row (:blrow-size grid-info))) (:blrow-size grid-info))
+   (* (math/floor (/ col (:blcol-size grid-info))) (:blcol-size grid-info))])
+
+(defn list-invalid [grid grid-info row col]
+  (let [[box_row box_col] (block-start grid-info row col)]
+    (union 
+      (set (for [test_row (range 0 (:row-count grid-info)) :when (not (= test_row row))]
+             (get-in grid [test_row col])))
+      (set (for [test_col (range 0 (:col-count grid-info)) :when (not (= test_col col))]
+             (get-in grid [row test_col])))
+      (set (for [test_row (range box_row (+ box_row (:blrow-size grid-info)))
+                 test_col (range box_col (+ box_col (:blcol-size grid-info)))
+                 :when (not (and (= test_row row) (= test_col col)))]
+                   (get-in grid [test_row test_col]))))))
+
+;; Lists the possible values for the cell at (get-in grid [row col])
+(defn list-valid [grid grid-info row col]
+  (let [possible (gen-cell-values grid-info)]
+    (difference possible (list-invalid grid grid-info row col))))
 
 ;; Genrates a list of all possible moves from a given grid
-(defn find-moves [grid]
-  (let [dim (count grid) temp-valid nil]
-    (for [row (range 0 (nth 0 dim)) col (range 0 (nth 1 dim)) :when (empty-cell (get-in grid [row col]))]
-        '('(row col) (list-valid grid row col)))))
+(defn find-moves [grid grid-info]
+  (let [row-count (:row-count grid-info) col-count (:col-count grid-info) temp-valid nil]
+    (for [row (range 0 row-count) col (range 0 col-count) 
+          :when (empty-cell (get-in grid [row col]))]
+        [[row col] (list-valid grid grid-info row col)])))
 
 
 ;; My thought is that the search can be designed to not explore invalid states,
@@ -62,21 +70,22 @@
 ;; state
 ;; is-full is the goal test in my search
 (defn is-full [grid]
-  (let [dim (count grid)]
-    (= 0 (count (take 1 (for [row (range 0 (nth 0 dim)) col (range 0 (nth 1 dim))
-                  :when (empty-cell (get-in grid [row col]))]
-      'empty))))))
+  (let [row-count (numrows grid) col-count (numcols grid)]
+    (= 0 
+      (count (take 1 (for [row (range 0 row-count) col (range 0 col-count)
+                           :when (empty-cell (get-in grid [row col]))]
+                        'empty))))))
 
-;; Generates a new states based on a state and a move
+;; Generates new states based on a state and a move
 (defn apply-move [grid move]
-  (let [row (first (first move)) col (fnext (first move)) values (fnext move)]
+  (let [[row col] (move 0) values (move 1)]
     (for [value values]
-        '(assoc grid row (assoc (grid row) col value) (count values)))))
+        (assoc grid row (assoc (grid row) col value)))))
 
 
 ;; Generates all new states from one state
-(defn successor-states [grid]
-  (let [moves (find-moves grid)]
+(defn successor-states [grid grid-info]
+  (let [moves (find-moves grid grid-info)]
     (for [move moves]
         (apply-move grid move))))
 
@@ -111,7 +120,8 @@
 ;; depthlimit - Depth limit (I never used it for sudoku)
 ;; reps_allowed - controls if duplicate state checking is on or off
 (defn general-search [game q-fn depthlimit & reps_allowed]
-  (let [closed (hash-map :test 'equal) goal nil open (list game) to_expand nil num_exp 0
+  (let [closed (hash-map :test 'equal) goal nil 
+        open (list game) to_expand nil num_exp 0
         new_nodes nil num_gen 0]
     (while (and (not goal) open) (do
       (def to-expand (pop open))
