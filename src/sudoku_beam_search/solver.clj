@@ -131,13 +131,12 @@
         open (list game)
         new_nodes nil num_gen 0]
     (loop [open (list game) num_exp 1 closed {(:board game) true}] (do
-      ;;(println "reps:" reps_allowed)
-      ;;(println "open: " open (type open))
-      ;;(println "closed: " closed)
+      ;(println "open: " (count open) (type open))
+      ;(println "closed: " (count closed))
       (let [to-expand (first open)]
-        (if (= 0 (mod num_exp 100)) (println "to-expand: " (:board to-expand)))
+        ;(if (= 0 (mod num_exp 1)) (println "to-expand: " (:board to-expand)))
         (cond
-          (nil? to-expand) ["Failed: to-expand empty"]
+          (nil? (:board to-expand)) ["Failed: to-expand empty" to-expand]
           (is-full (:board to-expand)) [to-expand num_exp]
           (and depthlimit (> (:depth to-expand 0) depthlimit)) ["depth limit reached"]
           true
@@ -147,56 +146,56 @@
               ;;(set num_gen (+ num_gen (count new_nodes)))
               (recur (q-fn (rest open) new_nodes) (+ num_exp 1) new_closed))))))))
 
-;; BFS Queueing function, (removes nil states if they exist)
-(defn q-bfs [old new]
-  (doall (remove nil? (into old new))))
-;; DFS Queueing function, (also removes any nil states)
+;; DFS Queueing function, (removes nil states if they exist)
 (defn q-dfs [old new]
+  (doall (remove nil? (into old new))))
+;; BFS Queueing function, (also removes any nil states)
+(defn q-bfs [old new]
   (doall (remove nil? (into new old))))
 
 ;; Helper function for BESTFS
 ;; inserts a game into old-games maintaining ascending order of
-;; (sibling-games i)
+;; (:siblings game). Recursive, suffers from stackoverflows.
 (defn insert-game [game old-games]
   (cond
-   (nil? old-games) (list game)
-   (<= (:siblings game) (:siblings (first old-games))) (cons game old-games)
-   true (cons (first old-games) (insert-game game (rest old-games)))))
+   (empty? old-games) (list game)
+   (<= (:siblings game)
+       (:siblings (first old-games))) (conj old-games game)
+   true (concat (list (first old-games)) (insert-game game (rest old-games)))))
 
 
 
 (defn sibling-compare [newstate oldstate]
-  (<= (:siblings newstate) (:siblings oldstate)))
+  (<= (:siblings newstate 0) (:siblings oldstate 0)))
 
 ;; Another helper function for BESTFS
 ;; same as insert-game, except it doesn't fill up the stack for
 ;; large problems. (I also tried a tail recursive version, but the loop
 ;; was faster)
 (defn insert-game-loop [new-game old-games]
-  (if (nil? old-games)
+  (if (empty? old-games)
     (list new-game)
     (let [num-old (count old-games)]
-      (loop [i num-old old-game (first old-games) remaining (rest old-games)]
-        (if (<= (:siblings new-game) (:siblings old-game))
-          (conj (butlast old-games (- num-old i)) 
-                (cons new-game (last old-games (- num-old i))))
-        (recur (- i 1) (first remaining) (rest remaining))))
-      (conj new-game old-games))))
+      (loop [first-half '() second-half old-games]
+        (cond
+          (empty? second-half) (concat first-half (list new-game))
+          (<= (:siblings new-game) (:siblings (first second-half)))
+            (concat first-half (list new-game) second-half)
+          true (recur (concat first-half (list (first second-half))) (rest second-half)))))))
 
 ;; BESTFS Queueing function
 ;; Output is a list in ascending order of
 ;; Sibling games (The number of other 'choices' when the state was generated)
 ;; NOTE:
-;; In my opinion a the 'best' order for sudoku is to expand based on:
+;; The 'best' order for sudoku is to expand based on:
 ;;  1. Depth (Deepest first)
 ;;  2. (If there is a tie in depth) Sibling-games (Least remaining values)
 ;; The function bases the ordering only on 2.
 (defn q-bestfs [old new]
-  (let [sorted old]
-    (for [game new]
-      (if game
-        (set sorted (insert-game-loop game sorted))))
-    sorted))
+  (loop [sorted old current (first new) remaining (rest new)]
+    (if (nil? current)
+      sorted  
+      (recur (insert-game-loop current sorted) (first remaining) (rest remaining)))))
 
 ;; BEAM search
 ;; This function consists of two ideas:
@@ -213,17 +212,10 @@
 ;;       (the square with the least possible values remaining).
 ;;
 (defn q-beam [old new]
-  (let [sorted nil templist nil]
-    (for [game new]
-      (if game
-        (do
-        (set templist (insert-game-loop game sorted))
-        (set sorted
-        (subseq templist 0
-        (min (count templist) (max (:siblings (first templist)) 1)))))))
-    (conj sorted old)))
+  (let [new-sorted (sort-by :siblings new)
+        new-subseq (take (max (:siblings (first new-sorted) 0) 1) new-sorted)]
+    (q-bestfs old new-subseq)))
 
 ;; A wrapper to take time stats on the general-search function
 (defn search-stats [game q-fs depthlimit & [reps_allowed]]
-  (let [start 0 end 0]
-    (time (general-search game q-fs depthlimit reps_allowed))))
+    (time (general-search game q-fs depthlimit reps_allowed)))

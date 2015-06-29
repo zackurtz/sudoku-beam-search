@@ -38,6 +38,15 @@
 	(testing "test 1"
 		(is (= 10 (count (successor-states test1 info-4x4))))))
 
+(deftest test-insert-game
+	(let [old-games (list {:siblings 2} {:siblings 3})
+		  complete (list {:siblings 2} {:siblings 2.5} {:siblings 3})]
+		(testing "recursive"
+			(is (= complete (insert-game {:siblings 2.5} old-games))))
+		(testing "loop"
+			(is (= complete (insert-game-loop {:siblings 2.5} old-games))))))
+
+
 (deftest test-expand-game
 	(testing "simple test"
 		(let [result (expand-game testc0)]
@@ -46,21 +55,26 @@
 
 (deftest test-general-search
 	(testing "easy test"
-		(is (= solved (:board (first (general-search testc0 q-bfs 5 false)))))
-		(is (= solved (:board (first (general-search testc0 q-bfs 5 true))))))
+		(is (= solved (:board (first (general-search testc0 q-dfs 5 false)))))
+		(is (= solved (:board (first (general-search testc0 q-dfs 5 true))))))
 	(testing "test 1"
-		(is (= test1-solved (:board (first (general-search testc1 q-bfs 100))))))
-	(testing "test 2"
-		(is (= test2-solved (:board (first (general-search testc2 q-bfs 100))))))
-	(testing "test 3"
-		(is (= test3-solved (:board (first (general-search testc3 q-bfs 1000))))))
-	(testing "test 4"
-		(is (= test4-solved (:board (first (general-search testc4 q-bfs 1000))))))
-	(testing "test 5"
-		(is (= test5-solved (:board (first (general-search testc5 q-bfs 1000))))))
-	(testing "test 6"
-		(let [results (general-search testc6 q-bfs 1000000)]
-			(is (= 0 (:board (first results) (first results)))))))
+		(let [results (general-search testc1 q-bestfs 1000)]
+			(is (= test1-solved (:board (first results) results)))))
+	(time (testing "test 2"
+	 	(is (= test2-solved (:board (first (general-search testc2 q-bestfs 1000)))))))
+	(time (testing "test 3"
+		(is (= test3-solved (:board (first (general-search testc3 q-bestfs 1000)))))))
+	(time (testing "test 4"
+		(is (= test4-solved (:board (first (general-search testc4 q-bestfs 1000)))))))
+	(time (testing "test 5"
+	 	(let [results (general-search testc5 q-beam 1000)]
+	 		(is (= test5-solved (:board (first results) (first results)))))))
+	(time (testing "test 6"
+		(let [results (general-search testc6 q-beam 1000)]
+			(is (= test6-solved (:board (first results) results))))))
+	(time (testing "test 9"
+		(let [results (general-search testc9 q-beam 1000)]
+			(is (= test9-solved (:board (first results) results)))))))
 
 	
 

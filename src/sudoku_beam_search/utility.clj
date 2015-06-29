@@ -83,6 +83,13 @@
             [2 '- '- 5 '- 1]
             ['- 1 '- '- 5 3]])
 
+(def test6-solved [[1 4 5 3 6 2] 
+                   [5 6 1 2 3 4]
+                   [3 2 4 6 1 5]
+                   [4 5 3 1 2 6]
+                   [2 3 6 5 4 1]
+                   [6 1 2 4 5 3]])
+
 ;; NOTE that for *test7*, *test8*, and *test9* you will need to change
 ;; the defvar/setq for XBLOCKS to 3 and YBLOCKS to 3, and reload 
 ;; this file to recompute MAXX, MAXY, and VALUES.
@@ -117,9 +124,18 @@
             [ 6 '- '- '- '- '-  9 '- '-]
             ['- '-  4 '- '-  8 '- '-  2]])
 
+(def test9-solved [[9 5 8 4 3 7 6 2 1] 
+                   [2 1 7 9 8 6 5 4 3]
+                   [4 6 3 1 2 5 8 9 7]
+                   [1 2 9 8 4 3 7 5 6]
+                   [7 8 6 5 1 9 2 3 4]
+                   [3 4 5 7 6 2 1 8 9]
+                   [8 9 2 3 7 1 4 6 5]
+                   [6 3 1 2 5 4 9 7 8]
+                   [5 7 4 6 9 8 3 1 2]])
 
-;;==============================================================
-;; GLOBAL CONSTANTS
+
+
 
 ;;==============================================================
 ;; BASIC UTILITY FUNCTIONS
@@ -147,7 +163,7 @@
 ;; A game (i.e., a node i the search tree) is a board (i.e., game
 ;; state) plus some bookkeeping information.
 
-(def game {:name nil :board nil :parent nil :depth 0 :siblings 0})
+(def base-game {:name nil :board nil :parent nil :depth 0 :siblings 0})
 
 
 ;;==============================================================
