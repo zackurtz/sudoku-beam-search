@@ -14,9 +14,10 @@
       :blrow-size block-rows :blcol-size block-cols}))
 
 (def info-4x4 (create-grid-info 2 2))
-(def info-6x6 (create-grid-info 2 3))
+(def info-6x6 (create-grid-info 3 2))
 (def info-9x9 (create-grid-info 3 3))
 
+(def testc0 {:name 'test-easy :board easy-test :info info-4x4})
 (def testc1 { :name 'test1 :board test1 :info info-4x4})
 (def testc2 { :name 'test2 :board test2 :info info-4x4})
 (def testc3 { :name 'test3 :board test3 :info info-4x4})
@@ -28,9 +29,6 @@
 (def testc9 { :name 'test9 :board test9 :info info-9x9})
 
 ;; Limits of search
-
-(def expand_limit 200000)
-(def max-runtime 30000000)
 
 ;; A function to generate the possible values for each cell
 (defn gen-cell-values [grid-info]
@@ -80,79 +78,81 @@
 (defn apply-move [grid move]
   (let [[row col] (move 0) values (move 1)]
     (for [value values]
-        (assoc grid row (assoc (grid row) col value)))))
+        { :board (assoc grid row (assoc (grid row) col value))
+          :siblings (count values)})))
 
 
 ;; Generates all new states from one state
 (defn successor-states [grid grid-info]
   (let [moves (find-moves grid grid-info)]
-    (for [move moves]
-        (apply-move grid move))))
+    (apply concat (for [move moves]
+        (apply-move grid move)))))
+
+(defn wrap-successors [parent successors]
+  (for [successor successors]
+    (merge parent 
+      { :board (:board successor) 
+        :parent parent
+        :depth (+ (:depth parent 0) 1)
+        :siblings (:siblings successor) } )))
+
+;; Add a list of games to the closed map
+(defn update-closed [closed games]
+  (loop [newclosed closed remaining games]
+    (if (empty? remaining)
+      newclosed
+      (recur (assoc closed (:board (first remaining)) true) (rest remaining)))))
+
 
 ;; Generates all successor games from the given game, checking for and removing
 ;; duplicate states
 ;; Correctly sets the value of sibling-games
 (defn expand-game-best [game closed]
-  (let [boards (successor-states game)]
-    (for [board boards]
-        (if (not (get closed (first board)))
-        (do
-          (set (get closed (first board)) true)
-               { :name (:name game)
-                 :board (first board) :parent game
-                 :depth (+ (:depth game) 1)
-                 :siblings (fnext board) } )))))
+  (let [not-in-closed? (fn [state] (not (get closed (:board state)))) 
+        unwrapped (filter not-in-closed? (successor-states (:board game) (:info game)))
+        expanded-games (wrap-successors game unwrapped)]
+    [expanded-games (update-closed closed expanded-games)]))
+
 
 ;; Generates all successor games, ignoring duplicate states
 ;; correctly sets the value of sibling-games to the number
 ;; of other states that were generated to the same square
 (defn expand-game [game]
-  (let [boards (successor-states game)]
-    (for [board boards]
-      { :name (:name game)
-        :board (first board) :parent game
-        :depth (+ (:depth game) 1)
-        :siblings (fnext board) } )))
+  (let [boards (successor-states (:board game) (:info game))]
+    (wrap-successors game boards)))
 
 ;; The main search function the arguements are:
 ;; game - Start state (has to be a game class)
 ;; q-fn - Queueing function (q-fn old new)
 ;; depthlimit - Depth limit (I never used it for sudoku)
 ;; reps_allowed - controls if duplicate state checking is on or off
-(defn general-search [game q-fn depthlimit & reps_allowed]
-  (let [closed (hash-map :test 'equal) goal nil 
-        open (list game) to_expand nil num_exp 0
+(defn general-search [game q-fn depthlimit & [reps_allowed]]
+  (let [closed (hash-map) 
+        open (list game)
         new_nodes nil num_gen 0]
-    (while (and (not goal) open) (do
-      (def to-expand (pop open))
-      (set num_exp (+ num_exp 1))
-      ;(print open)
-      ;(print to-expand)
-      (cond
-       (nil? to-expand) (set goal false)
-       (is-full to-expand) (set goal to-expand)
-       (and depthlimit (> (:depth to-expand) depthlimit)) true
-       reps_allowed (do
-               (set new_nodes (expand-game to-expand))
-               (set num_gen (+ num_gen (count new_nodes)))
-               (set open (q-fn open new_nodes)))
-       true (do
-        (set new_nodes (expand-game-best to-expand closed))
-        (set num_gen (+ num_gen (count new_nodes)))
-        (set open (q-fn open new_nodes))))
-      (if (> num_exp expand_limit) (set goal "EXCEEDED MAX NODES"))))
-    (println "NUM. EXPANDED")
-    (println num_exp)
-    (println "NUM. GENERATED")
-    (println num_gen)
-    goal))
+    (loop [open (list game) num_exp 1 closed {(:board game) true}] (do
+      ;;(println "reps:" reps_allowed)
+      ;;(println "open: " open (type open))
+      ;;(println "closed: " closed)
+      (let [to-expand (first open)]
+        (if (= 0 (mod num_exp 100)) (println "to-expand: " (:board to-expand)))
+        (cond
+          (nil? to-expand) ["Failed: to-expand empty"]
+          (is-full (:board to-expand)) [to-expand num_exp]
+          (and depthlimit (> (:depth to-expand 0) depthlimit)) ["depth limit reached"]
+          true
+            (let [[new_nodes new_closed] (if reps_allowed
+                              [(expand-game to-expand) {}]
+                              (expand-game-best to-expand closed))]
+              ;;(set num_gen (+ num_gen (count new_nodes)))
+              (recur (q-fn (rest open) new_nodes) (+ num_exp 1) new_closed))))))))
 
 ;; BFS Queueing function, (removes nil states if they exist)
 (defn q-bfs [old new]
-  (remove nil? (conj old new)))
+  (doall (remove nil? (into old new))))
 ;; DFS Queueing function, (also removes any nil states)
 (defn q-dfs [old new]
-  (remove nil? (cons new old)))
+  (doall (remove nil? (into new old))))
 
 ;; Helper function for BESTFS
 ;; inserts a game into old-games maintaining ascending order of
@@ -163,6 +163,10 @@
    (<= (:siblings game) (:siblings (first old-games))) (cons game old-games)
    true (cons (first old-games) (insert-game game (rest old-games)))))
 
+
+
+(defn sibling-compare [newstate oldstate]
+  (<= (:siblings newstate) (:siblings oldstate)))
 
 ;; Another helper function for BESTFS
 ;; same as insert-game, except it doesn't fill up the stack for

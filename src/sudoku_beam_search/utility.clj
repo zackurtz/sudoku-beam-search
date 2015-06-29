@@ -22,11 +22,21 @@
             ['- '- 3 1]
             [1 3 '- '-]])
 
+(def test1-solved [[4 1 2 3]
+                   [3 2 1 4]
+                   [2 4 3 1]
+                   [1 3 4 2]])
+
 ;; A board with 10 missing numbers
 (def test2 [['- 4 '- '-]
             [1 3 '- '-]
             ['- '- 1 3]
             ['- '- 2 '-]])
+
+(def test2-solved [[2 4 3 1]
+                   [1 3 4 2]
+                   [4 2 1 3]
+                   [3 1 2 4]])
 
 ;; A board with 12 missing numbers
 (def test3 [['- '- 1 '-]
@@ -34,8 +44,17 @@
             ['- '- '- 1]
             ['- 2 '- '-]])
 
+(def test3-solved [[2 4 1 3]
+                   [3 1 4 2]
+                   [4 3 2 1]
+                   [1 2 3 4]])
+
 ;; Another board with 12 missing numbers
 (def test4 [['- '- 4 '-][3 '- '- '-]['- '- '- 1]['- 2 '- '-]])
+(def test4-solved [[2 1 4 3]
+                   [3 4 1 2]
+                   [4 3 2 1]
+                   [1 2 3 4]])
 
 
 ;; NOTE that for *test5* and *test6* you will need to change
@@ -49,6 +68,12 @@
             [3 6 1 2 5 4]
             ['- 2 4 '- 1 6]
             [1 4 6 5 3 '-]])
+(def test5-solved [[4 3 2 1 6 5]
+                   [6 5 3 4 2 1]
+                   [2 1 5 6 4 3]
+                   [3 6 1 2 5 4]
+                   [5 2 4 3 1 6]
+                   [1 4 6 5 3 2]])
 
 ;; A 6x6 board with 16 missing numbers
 (def test6 [[1 '- '- '- '- 2]
